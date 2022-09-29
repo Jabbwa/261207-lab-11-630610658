@@ -10,13 +10,47 @@ export default function roomIdMessageIdRoute(req, res) {
   const messageId = req.query.messageId;
 
   //check token
+  const user = checkToken(req);
+
+  if (!user)
+    return res.status(401).json({
+      ok: false,
+      massege: "You don't permission to this api",
+    });
 
   const rooms = readChatRoomsDB();
 
   //check if roomId exist
 
+  const roomIndex = rooms.findIndex((x) => x.roomId === roomId);
+  if (roomIndex === -1)
+    return res.status(404).json({ ok: false, message: "Invalid room id" });
+
   //check if messageId exist
 
+  const indexMessage = rooms[roomIndex].messages.findIndex(
+    (x) => x.messageId === messageId
+  );
+  if (indexMessage === -1)
+    return res.status(404).json({ ok: false, message: "Invalid message id" });
+
   //check if token owner is admin, they can delete any message
+  if (user.isAdmin === true) {
+    rooms[roomIndex].messages.splice(indexMessage, 1);
+    writeChatRoomsDB(rooms);
+    return res.json({ ok: true });
+  }
   //or if token owner is normal user, they can only delete their own message!
+  if (user.isAdmin === false) {
+    if (rooms[roomIndex].messages[indexMessage].username === user.username) {
+      rooms[roomIndex].messages.splice(indexMessage, 1);
+      writeChatRoomsDB(rooms);
+      return res.json({ ok: true });
+    } else {
+      return res.status(403).json({
+        ok: false,
+        message: "You do not have permission to access this data",
+      });
+    }
+  }
 }
